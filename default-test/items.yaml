@@ -1,0 +1,335 @@
+removeStrategy:
+  rbac: SYNC
+  items: NONE
+items:
+- kind: folder
+  name: SelfManagedJobs
+  description: ''
+  displayName: SelfManagedJobs
+  items:
+  - kind: pipeline
+    name: createMultibranchPipeline
+    concurrentBuild: true
+    definition:
+      cpsFlowDefinition:
+        sandbox: true
+        script: ''
+    description: ''
+    disabled: false
+    displayName: createMultibranchPipeline
+    properties:
+    - parameters:
+        parameterDefinitions:
+        - string:
+            trim: false
+            name: Display Name
+        - choice:
+            name: Branch Sources
+            choices:
+            - Git
+            - Bitbucket
+        - string:
+            trim: false
+            name: Git Repo URL
+        - string:
+            trim: false
+            name: Git Credential ID
+        - choice:
+            name: Scan Multibranch Pipeline Triggers
+            choices:
+            - 1 day
+            - 2 days
+            - 1 week
+            - 2 weeks
+            - 4 weeks
+            - 1 hour
+            - 2 hours
+            - 4 hours
+            - 8 hours
+            - 12 hours
+            - 1 minute
+            - 2 minutes
+            - 3 minutes
+            - 5 minutes
+            - 10 minutes
+            - 15 minutes
+            - 20 minutes
+            - 25 minutes
+            - 30 minutes
+        - choice:
+            name: kind
+            choices:
+            - multibranch
+    resumeBlocked: false
+  - kind: pipeline
+    name: defineCredential
+    concurrentBuild: true
+    definition:
+      cpsFlowDefinition:
+        sandbox: true
+        script: ''
+    description: ''
+    disabled: false
+    displayName: defineCredential
+    properties:
+    - parameters:
+        parameterDefinitions:
+        - credentials:
+            credentialType: com.cloudbees.plugins.credentials.common.StandardCredentials
+            defaultValue: ''
+            name: Create_Credential
+            required: false
+    resumeBlocked: false
+  - kind: pipeline
+    name: defineNewJob
+    concurrentBuild: true
+    definition:
+      cpsFlowDefinition:
+        sandbox: true
+        script: |
+          // Uses Declarative syntax to run commands inside a container.
+          @Library('shared-library') _
+          pipeline {
+              agent {
+                  kubernetes {
+                      // Rather than inline YAML, in a multibranch Pipeline you could use: yamlFile 'jenkins-pod.yaml'
+                      // Or, to avoid YAML:
+                      // containerTemplate {
+                      //     name 'shell'
+                      //     image 'ubuntu'
+                      //     command 'sleep'
+                      //     args 'infinity'
+                      // }
+                      yaml '''
+          apiVersion: v1
+          kind: Pod
+          spec:
+            containers:
+            - name: shell
+              image: ubuntu
+              command:
+              - sleep
+              args:
+              - infinity
+          '''
+                      // Can also wrap individual steps:
+                      // container('shell') {
+                      //     sh 'hostname'
+                      // }
+                      defaultContainer 'shell'
+                  }
+              }
+              parameters {
+                  string(name: 'Repo_Url', defaultValue: '', description: 'Bitbucket repo URL')
+                  string(name: 'Project_Name', defaultValue: '', description: 'Bitbucket Project name')
+                  string(name: 'Jenkins_File_Path', defaultValue: '', description: '')
+                  string(name: 'Credential_Id', defaultValue: '', description: 'Git credentials to clone the repo')
+                  string(name: 'Branch_Name', defaultValue: '', description: '')
+              }
+              stages {
+                  stage('Main') {
+                      steps {
+                        create_pipeline_job(params.Repo_Url, params.Project_Name, params.Jenkins_File_Path, params.Git_Credentials, params.Branch_Name)
+                      }
+                  }
+              }
+          }
+    description: ''
+    disabled: false
+    displayName: defineNewJob
+    properties:
+    - parameters:
+        parameterDefinitions:
+        - string:
+            trim: false
+            name: Repo_Url
+            description: Bitbucket repo URL
+        - string:
+            trim: false
+            name: Project_Name
+            description: Bitbucket Project name
+        - string:
+            trim: false
+            name: Jenkins_File_Path
+        - string:
+            trim: false
+            name: Branch_Name
+        - string:
+            trim: false
+            name: Credential_Id
+            description: Credential Id to access the git repo
+    resumeBlocked: false
+  - kind: pipeline
+    name: defineSharedLibrary
+    concurrentBuild: true
+    definition:
+      cpsFlowDefinition:
+        sandbox: true
+        script: |
+          pipeline {
+              agent {
+                  kubernetes {
+                      // Rather than inline YAML, in a multibranch Pipeline you could use: yamlFile 'jenkins-pod.yaml'
+                      // Or, to avoid YAML:
+                      // containerTemplate {
+                      //     name 'shell'
+                      //     image 'ubuntu'
+                      //     command 'sleep'
+                      //     args 'infinity'
+                      // }
+                      yaml '''
+          apiVersion: v1
+          kind: Pod
+          spec:
+            containers:
+            - name: shell
+              image: ubuntu
+              command:
+              - sleep
+              args:
+              - infinity
+          '''
+                      // Can also wrap individual steps:
+                      // container('shell') {
+                      //     sh 'hostname'
+                      // }
+                      defaultContainer 'shell'
+                  }
+              }
+
+              stages {
+                  stage('Hello') {
+                      steps {
+                          echo 'Hello World'
+                      }
+                  }
+              }
+          }
+    description: ''
+    disabled: false
+    displayName: defineSharedLibrary
+    properties:
+    - parameters:
+        parameterDefinitions:
+        - string:
+            trim: false
+            name: Library_Name
+            description: 'An identifier you pick for this library, to be used in the
+              @Library annotation. '
+        - string:
+            trim: false
+            name: Default_Version
+            description: A default version of the library to load if a script does
+              not select another. Might be a branch name, tag, commit hash, etc.,
+              according to the SCM.
+        - string:
+            trim: false
+            defaultValue: Modern SCM
+            name: Retrieval method
+        - string:
+            trim: false
+            name: Git Repo URL
+        - string:
+            trim: false
+            name: GIt Credential ID
+    resumeBlocked: false
+  - kind: pipeline
+    name: installPlugin
+    concurrentBuild: true
+    definition:
+      cpsFlowDefinition:
+        sandbox: true
+        script: |-
+          // Uses Declarative syntax to run commands inside a container.
+          pipeline {
+              agent {
+                  kubernetes {
+                      // Rather than inline YAML, in a multibranch Pipeline you could use: yamlFile 'jenkins-pod.yaml'
+                      // Or, to avoid YAML:
+                      // containerTemplate {
+                      //     name 'shell'
+                      //     image 'ubuntu'
+                      //     command 'sleep'
+                      //     args 'infinity'
+                      // }
+                      yaml '''
+          apiVersion: v1
+          kind: Pod
+          spec:
+            containers:
+            - name: shell
+              image: ubuntu
+              command:
+              - sleep
+              args:
+              - infinity
+          '''
+                      // Can also wrap individual steps:
+                      // container('shell') {
+                      //     sh 'hostname'
+                      // }
+                      defaultContainer 'shell'
+                  }
+              }
+              parameters {
+                  string(name: 'Plugin_Name', defaultValue: '', description: 'Plugin name to be installed')
+                  string(name: 'Plugin_Github_Url', defaultValue: '', description: 'Github URL of the Plugin')
+              }
+              stages {
+                  stage('Main') {
+                      steps {
+                          sh 'echo "Hello World"'
+                      }
+                  }
+              }
+          }
+    description: ''
+    disabled: false
+    displayName: installPlugin
+    properties:
+    - parameters:
+        parameterDefinitions:
+        - string:
+            trim: false
+            name: Plugin_ID
+            description: Plugin name to be installed
+        - choice:
+            name: Plugin_Tier
+            choices:
+            - Tier 1
+            - Tier 2
+            - Tier 3
+        - text:
+            trim: false
+            name: Plugin dependencies
+    resumeBlocked: false
+  properties:
+  - folderCredentialsProperty:
+      folderCredentials:
+      - credentials:
+        - usernamePassword:
+            password: '{AQAAABAAAAAssQKNd3EsmhNVzCdsat2GdYCPdgUxRcocXN5/WS8RB0nm2kcI=}'
+            description: ''
+            id: shruti
+            usernameSecret: false
+            username: shruti-cloudbees
+        domain: {}
+  - envVars: {}
+  - folderLibraries:
+      libraries:
+      - libraryConfiguration:
+          implicit: false
+          allowVersionOverride: true
+          retriever:
+            modernSCM:
+              scm:
+                git:
+                  traits:
+                  - gitBranchDiscovery: {}
+                  credentialsId: ''
+                  id: b08a4bb7-35c8-4536-baac-93886f207286
+                  remote: https://github.com/darinpope/github-api-global-lib.git
+          name: shared-library
+          includeInChangesets: true
+  - itemRestrictions:
+      filter: false
