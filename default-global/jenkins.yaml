@@ -17,6 +17,20 @@ unclassified:
       - credentialsId: "github-token"
         name: "GitHub"
     hookUrl: "$JENKINS_BASE_URL/github-webhook/"
+
+  bundleStorageService:
+    activated: true
+    bundles:
+    - name: "casc-bundle"
+      retriever:
+        SCM:
+          defaultVersion: "main"
+          scmSource:
+            git:
+              id: "036cfc2c-08fc-4f5a-ba58-996e12d249ca"
+              remote: "https://github.com/shruti-cloudbees/cbci-casc-bundles.git"
+              traits:
+              - "gitBranchDiscovery"
   globalLibraries:
     libraries:
       - allowVersionOverride: false
